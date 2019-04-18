@@ -1,0 +1,18 @@
+INDEX VERSION 1.131+/media/leo/fecdc20c-1882-4709-a4a8-bbda83bab203/java_project/bitcoin/.metadata/.plugins/org.eclipse.jdt.core
+1815821155.index
+3745985385.index
+2209604375.index
+1699562578.index
+2732596845.index
+974760931.index
+1210800983.index
+2930996097.index
+823883804.index
+2556894482.index
+5486916.index
+883589423.index
+4082446955.index
+349170704.index
+4070581748.index
+3391521142.index
+4235266440.index

@@ -1,10 +1,13 @@
 package com.lanjing.bitcoin.dto.response;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
+@ApiModel(value = "BtcAddressInfo",description = "比特币地址信息")
 public class BtcAddressInfo {
 
 
@@ -18,10 +21,15 @@ public class BtcAddressInfo {
      * "d5ef21cd7430d603774e063a70707aeb241e080e475733b3eed5f8ac0f388f9b"]
      */
 
+    @ApiModelProperty(value = "地址",required = true)
     private String address;
+    @ApiModelProperty(value = "账号",required = true)
     private String account;
+    @ApiModelProperty(value = "金额",required = true)
     private double amount;
+    @ApiModelProperty(value = "广播次数",required = true)
     private int confirmations;
     private String label;
+    @ApiModelProperty(value = "txid",required = true)
     private List<String> txids;
 }

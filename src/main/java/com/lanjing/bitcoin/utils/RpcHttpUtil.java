@@ -7,6 +7,7 @@ import com.lanjing.bitcoin.dto.BaseRpcReq;
 import com.lanjing.bitcoin.exception.BaseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.codec.binary.Base64;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
 import javax.validation.constraints.NotNull;
@@ -18,14 +19,16 @@ import java.util.Map;
 @Slf4j
 public class RpcHttpUtil {
     //private static final String RPC_HOST = "http://156.233.68.81";
-    private static final String RPC_HOST = "http://localhost";
-    private static final String RPC_PORT = "8332";
+    //private String RPC_HOST = "http://38.21.243.94";
+    private static final String RPC_HOST = "http://192.168.1.166";
+    //private static final String RPC_HOST = "http://47.106.101.68";
+    private String RPC_PORT = "8332";
     private String RPC_USER = "lanjing";
 
     private String RPC_PASSWORD = "root";
 
 
-    private static final String URL = RPC_HOST + ":" + RPC_PORT;
+    private String URL = RPC_HOST + ":" + RPC_PORT;
     private JsonRpcHttpClient mClient;
     private RestTemplate mClient2;
 

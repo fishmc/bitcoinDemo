@@ -1,8 +1,11 @@
 package com.lanjing.bitcoin.dto.response;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 @Data
+@ApiModel(value = "UnspentRes",description = "UTXO对象")
 public class UnspentRes {
 
     /**
@@ -26,4 +29,21 @@ public class UnspentRes {
     private int confirmations;
     private boolean spendable;
     private boolean solvable;
+
+    private double value;
+
+    public UnspentRes() {
+    }
+
+    public UnspentRes(String txid, int vout){
+        this.txid = txid;
+        this.vout = vout;
+    }
+
+    public UnspentRes(String txid,int vout,String scriptPubKey,double value){
+        this.txid = txid;
+        this.vout = vout;
+        this.scriptPubKey = scriptPubKey;
+        this.value = value;
+    }
 }

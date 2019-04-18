@@ -1,58 +1,30 @@
 package com.lanjing.bitcoin.dao;
 
-import com.googlecode.jsonrpc4j.JsonRpcHttpClient;
+import com.lanjing.bitcoin.dto.request.RawInput;
 import com.lanjing.bitcoin.dto.response.*;
 import com.lanjing.bitcoin.exception.E;
 import com.lanjing.bitcoin.utils.AssertUp;
 import com.lanjing.bitcoin.utils.RpcHttpUtil;
 import com.sun.istack.internal.Nullable;
 import lombok.extern.slf4j.Slf4j;
-import org.bitcoinj.core.*;
-import org.bitcoinj.params.MainNetParams;
-import org.bitcoinj.params.TestNet2Params;
-import org.bitcoinj.script.Script;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
-import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
-import wf.bitcoin.javabitcoindrpcclient.BitcoindRpcClient;
 
-import java.math.BigDecimal;
-import java.net.MalformedURLException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
-import static org.bitcoinj.core.Utils.HEX;
 
 @Slf4j
 @Repository
 public class BitcoinDao {
 
     private RpcHttpUtil http;
-    private JsonRpcHttpClient mClient;
 
-    private static BitcoinJSONRPCClient client;
-    private static NetworkParameters params;
 
     public BitcoinDao() {
-        try {
             http = new RpcHttpUtil();
-            params = MainNetParams.get();
-            client = new BitcoinJSONRPCClient("http://lanjing:root@127.0.0.1:8332");
-        } catch (MalformedURLException e) {
-            System.out.format("static init error");
-        }
     }
 
-
-    /***
-     * 获取比特币底层基本信息
-     * @param: []
-     * @return: java.lang.String
-     **/
-    public BitCoinInfoRes getBitCoinInfo() {
-        return http.engine("getinfo", BitCoinInfoRes.class);
-    }
 
     /***
      * 验证地址合法性
@@ -78,7 +50,6 @@ public class BitcoinDao {
 
 
     }
-
 
     /***
      * 获取账户名称下的地址列表
@@ -129,16 +100,167 @@ public class BitcoinDao {
      * @param: [address]
      * @return: void
      **/
-    public List<UnspentRes> listUnSpent(@Nullable java.lang.String address) {
+    public UnspentRes[] listUnSpent(@Nullable java.lang.String address) {
 
         AssertUp.isTrue(address == null || validateAddress(address).isvalid, E.ADDRESS_ERROR);
         if (StringUtils.isEmpty(address)) {
-            return http.engine("listunspent", List.class);
+            UnspentRes[] listunspent = http.engine("listunspent", UnspentRes[].class);
+            return listunspent;
         } else {
-            Object[] parms = {1, 999999, new java.lang.String[]{address}};//最小确认，最大确认
-            return http.engine("listunspent", List.class, parms);
+            Object[] parms = {0, 999999, new java.lang.String[]{address}};//最小确认，最大确认
+            UnspentRes[] listunspent = http.engine("listunspent", UnspentRes[].class, parms);
+            return listunspent;
         }
     }
+
+
+    /****************************Step 7 ****************************************/
+    /***
+     * 创建一个 payload ,注意amount需要是String类型
+     * @param:
+     * [
+     * propertyid:令牌id
+     * amount:金额
+     * ]
+     * @return: String
+     **/
+    public String payload(int propertyid,double amount){
+        AssertUp.isTrue(amount > 0, E.AMOUNT_INPUT_EEROR);
+        return http.engine("omni_createpayload_simplesend",String.class,propertyid,String.valueOf(amount));
+    }
+
+    /***
+     * 构建交易
+     * @param:
+     * [
+     * List<UnspentRes>:UTXOS
+     * ]
+     * @return: String
+     **/
+    public String Createrawtransaction(UnspentRes[] UTXOs,String fromAddress,String toAddress,double amount,double fee){
+        //创建BTC交易
+
+        //parm1:Inputs
+        RawInput[] rawInputs = new RawInput[UTXOs.length];
+        RawInput rawInput = new RawInput();
+        for (int i = 0; i < UTXOs.length ; i++) {
+            rawInput.setTxid(UTXOs[i].getTxid());
+            rawInput.setVout(UTXOs[i].getVout());
+            rawInputs[i] = rawInput;
+        }
+
+        //parm2:The address and amounts to pay fee
+        HashMap<String,String> parm2 = new HashMap();
+        parm2.put(toAddress, String.valueOf(amount));
+        parm2.put(fromAddress, String.valueOf(fee));
+
+        HashMap parm3 = new HashMap();
+
+//        createrawtransaction
+//    '[
+//        { "txid" : "245d0eb639deb018be072c8058e0f8e0ce24783b1c8a563c4d2d6c6956ff420b", "vout" : 0 },
+//          { "txid" : "ba2647bb6eb71e4e7e152b846485818d2445e83d3173b14a14ccb21736ab616f", "vout" : 1 },
+//          { "txid" : "1a679597b984addf4c67e47c3a49482e691bbbd600b78d132264d23f474c09fd", "vout" : 0 }
+//    ]'
+//    '{"my9kpaTvPvoBJsABQR6uzwXPRnEbkRkn8w": 0.025}'
+
+      //          createrawtransaction '[ { "txid" : "245d0eb639deb018be072c8058e0f8e0ce24783b1c8a563c4d2d6c6956ff420b", "vout" : 0 }, { "txid" : "ba2647bb6eb71e4e7e152b846485818d2445e83d3173b14a14ccb21736ab616f", "vout" : 1 }, { "txid" : "1a679597b984addf4c67e47c3a49482e691bbbd600b78d132264d23f474c09fd", "vout" : 0 } ]' '{"my9kpaTvPvoBJsABQR6uzwXPRnEbkRkn8w": 0.025}'
+
+
+       return http.engine("createrawtransaction", String.class , rawInputs, parm2 );
+    }
+
+    /***
+     * 附加输出交易，step2和step3
+     * @param:
+     * [
+     * createrawtransaction:Step3的输出
+     * payload：step2的输出
+     * ]
+     * @return: String
+     **/
+    public String omniCreaterawtxOpreturn(String createrawtransaction,String payload){
+        return http.engine("omni_createrawtx_opreturn",String.class,createrawtransaction,payload);
+    }
+
+    /***
+     * 附加输入交易，step4和输出地址
+     * @param:
+     * [
+     * omniCreaterawtxOpreturn:Step4的输出
+     * toAddress：输出地址
+     * ]
+     * @return: String
+     **/
+    public String omniCreaterawtxReference(String omniCreaterawtxOpreturn,String toAddress){
+        AssertUp.isTrue(toAddress == null || validateAddress(toAddress).isvalid, E.ADDRESS_ERROR);
+        return http.engine("omni_createrawtx_reference",String.class,omniCreaterawtxOpreturn,toAddress);
+    }
+
+    /***
+     * 指定gas费的地址
+     * @param:
+     * [
+     * reference:Step5的输出
+     * fromAddress：fee地址
+     * fee:gas费用
+     * List<UnspentRes>：需要带上密钥
+     * ]
+     * @return: String
+     **/
+    public String omniCreaterawtxChange(String reference, String fromAddress,double fee,List<UnspentRes> UTXOs){
+        AssertUp.isTrue(fromAddress == null || validateAddress(fromAddress).isvalid, E.ADDRESS_ERROR);
+        Map[] args1 = new Map[2];
+        int flag = 0;
+
+        for(UnspentRes UTXO : UTXOs){
+            Map input = new HashMap();
+            input.put("txid" ,UTXO.getTxid());
+            input.put("vout" ,UTXO.getVout());
+            input.put("scriptPubKey", UTXO.getScriptPubKey());
+            input.put("value",UTXO.getValue());
+            args1[flag] = input;
+            flag ++ ;
+
+        }
+
+        return http.engine("omni_createrawtx_change",String.class,reference,args1,fromAddress,fee);
+    }
+
+    /***
+     * 签署交易
+     * @param:
+     * [
+     * tx_change:Step6的输出
+     * ]
+     * @return: String
+     **/
+    public Signrawtransaction signrawtransaction(String tx_change){
+        return http.engine("signrawtransaction", Signrawtransaction.class,tx_change);
+    }
+
+    /***
+     * 广播交易
+     * @param:
+     * [
+     * signrawtransaction:Step7的输出
+     * ]
+     * @return: String
+     **/
+    public String sendrawtransaction(String signrawtransaction) {
+
+        return http.engine("sendrawtransaction", String.class, signrawtransaction);
+    }
+
+    public String sendtoaddress(String toAddress,double amount){
+        AssertUp.isTrue(validateAddress(toAddress).isvalid, E.ADDRESS_ERROR);
+        AssertUp.isTrue(amount > 0, E.AMOUNT_INPUT_EEROR);
+        return http.engine("sendtoaddress",String.class,toAddress, String.valueOf(amount));
+    }
+
+
+
+
 
 
     /***
@@ -186,10 +308,10 @@ public class BitcoinDao {
      * @param: [address, propertyid]
      * @return: java.lang.String
      **/
-    public List<OmniTokenBalanceInfoRes> getBalanceByAddAndId(String address, int propertyid) {
+    public OmniTokenBalanceInfoRes getBalanceByAddAndId(String address, int propertyid) {
 
         AssertUp.isTrue(validateAddress(address).isvalid, E.ADDRESS_ERROR);
-        return http.engine("omni_getbalance", List.class, address, propertyid);
+        return http.engine("omni_getbalance", OmniTokenBalanceInfoRes.class, address, propertyid);
     }
 
     /***
@@ -218,23 +340,6 @@ public class BitcoinDao {
     }
 
 
-    /***
-     * 查询钱包中所有地址的余额信息
-     * @param: []
-     * @return: java.lang.String
-     **/
-    public List<OmniTokenBalWithAddressRes> getAllBalancesWithAddress() {
-        return http.engine("omni_getwalletaddressbalances", List.class);
-    }
-
-    /***
-     * 查询所有令牌的余额总额
-     * @param: []
-     * @return: java.lang.String
-     **/
-    public List<OmniTokenBalanceInfoRes> getAllBalances() {
-        return http.engine("omni_getwalletbalances", List.class);
-    }
 
 
     /***
@@ -389,89 +494,6 @@ public class BitcoinDao {
     }
 
 
-    /**
-     * bitcoin交易（汇智网）
-     */
-    public String bitcoinSpent(@Nullable String address, double amount) throws Exception {
-
-
-        AssertUp.isTrue(validateAddress(address).isvalid || address == null || address.equals("*"), E.ADDRESS_ERROR);
-        AssertUp.isTrue(amount > 0, E.AMOUNT_INPUT_EEROR);
-
-        ECKey spenderKey = new ECKey();
-        ECKey shopKey = new ECKey();
-        ECKey changeKey = new ECKey();
-        UTXO utxo = fund(address, amount);
-        //UTXO utxo = fund(spenderKey.toAddress(params).toString(),2.0);
-        //UTXO utxo = fund(Address.fromBase58(params, "n2fyQpVSbKW8mZJuWDQ9zcQ8bfc5jwv16V").toString(), 0.001);
-        System.out.format("utxo => %s\n", utxo);
-
-        String hexTx = spend(utxo, spenderKey, shopKey.toAddress(params), Coin.parseCoin(String.valueOf(amount)), changeKey.toAddress(params));
-
-        decode(hexTx);
-
-        broadcast(hexTx);
-
-        return hexTx;
-    }
-
-
-    private static String spend(UTXO utxo, ECKey spenderKey, Address shopAddr, Coin shopAmount, Address changeAddr) throws Exception {
-        System.out.format("spend %s sat to %s \n", shopAmount, shopAddr);
-        Coin fee = Coin.parseCoin("0.0001");
-        Coin changeAmount = utxo.getValue().subtract(shopAmount).subtract(fee);
-        System.out.format("change %s sat to %s \n", changeAmount, changeAddr);
-
-        Transaction tx = new Transaction(params);
-        tx.addOutput(shopAmount, shopAddr);
-        tx.addOutput(changeAmount, changeAddr);
-
-        TransactionOutPoint fundOutPoint = new TransactionOutPoint(params, utxo.getIndex(), utxo.getHash());
-        tx.addSignedInput(fundOutPoint, utxo.getScript(), spenderKey);
-
-        String hexTx = HEX.encode(tx.bitcoinSerialize());
-        System.out.format("raw tx => %s\n", hexTx);
-        return hexTx;
-    }
-
-    private static void decode(String hexTx) throws Exception {
-        BitcoindRpcClient.RawTransaction rawTx = client.decodeRawTransaction(hexTx);
-        System.out.format("raw tx => %s\n", rawTx);
-    }
-
-    private static void broadcast(String hexTx) throws Exception {
-        String txid = client.sendRawTransaction(hexTx);
-        client.generate(6);
-        System.out.format("raw tx confirmed => %s\n", txid);
-    }
-
-    private static UTXO fund(String addr, double amount) throws Exception {
-        System.out.format("fund spender %s %.8f btc\n", addr, amount);
-        BigDecimal amounts = BigDecimal.valueOf(amount);
-        String txid = client.sendToAddress(addr, amounts);
-
-        client.generate(6);
-
-        BitcoindRpcClient.RawTransaction rawtx = client.getRawTransaction(txid);
-        System.out.format("rawtx => %s\n", rawtx);
-
-        List<BitcoindRpcClient.RawTransaction.Out> vout = rawtx.vOut();
-        for (BitcoindRpcClient.RawTransaction.Out out : vout) {
-            if (out.scriptPubKey().addresses().contains(addr)) {
-                UTXO utxo = new UTXO(
-                        new Sha256Hash(rawtx.txId()),
-                        out.n(),
-                        Coin.parseCoin(String.format("%f", out.value())),
-                        0, //height to be updated
-                        false,
-                        new Script(HEX.decode(out.scriptPubKey().hex()))
-                );
-                return utxo;
-            }
-            ;
-        }
-        return null;
-    }
 
 
 }
